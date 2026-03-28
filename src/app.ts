@@ -3,11 +3,13 @@ import cors from "cors";
 import productRoutes from "./routes/product.routes";
 import userRoutes from "./routes/user.routes";
 import authRoutes from "./routes/auth.routes";
+
 const app = express();
 
+// ✅ FIXED CORS
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: true, // allow any origin (perfect for dev)
     credentials: true,
   }),
 );

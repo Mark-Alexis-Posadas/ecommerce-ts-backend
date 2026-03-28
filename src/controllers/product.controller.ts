@@ -3,8 +3,24 @@ import Product from "../models/product.model";
 
 export const getProducts = async (req: Request, res: Response) => {
   try {
-    const products = await Product.find().sort({ createdAt: -1 });
-    res.json(products);
+    //query params
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 5;
+
+    const skip = (page - 1) * limit;
+    //data
+    const products = await Product.find()
+      .sort({ createdAt: 1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Product.countDocuments();
+    res.json({
+      data: products,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      totalItems: total,
+    });
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch products" });
   }
