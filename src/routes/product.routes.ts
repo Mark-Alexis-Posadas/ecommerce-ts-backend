@@ -5,10 +5,12 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
+  getCategories,
 } from "../controllers/product.controller";
 
 const router = express.Router();
 
+router.get("/categories", getCategories);
 router.get("/", getProducts);
 router.get("/:id", getProductById);
 router.post("/", createProduct);
