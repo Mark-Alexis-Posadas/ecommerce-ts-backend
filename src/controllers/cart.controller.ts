@@ -67,6 +67,73 @@ export const addToCart = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// ✅ INCREMENT QTY
+export const incrementQty = async (req: AuthRequest, res: Response) => {
+  try {
+    const { productId } = req.body;
+
+    const cart = await Cart.findOne({ user: req.user._id });
+
+    if (!cart) {
+      return res.status(404).json({ message: "Cart not found" });
+    }
+
+    const itemIndex = cart.items.findIndex(
+      (item: any) => item.product.toString() === productId,
+    );
+
+    if (itemIndex === -1) {
+      return res.status(404).json({ message: "Item not in cart" });
+    }
+
+    cart.items[itemIndex].quantity += 1;
+
+    await cart.save();
+
+    const updatedCart = await cart.populate("items.product");
+
+    res.json(updatedCart);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ✅ DECREMENT QTY
+export const decrementQty = async (req: AuthRequest, res: Response) => {
+  try {
+    const { productId } = req.body;
+
+    const cart = await Cart.findOne({ user: req.user._id });
+
+    if (!cart) {
+      return res.status(404).json({ message: "Cart not found" });
+    }
+
+    const itemIndex = cart.items.findIndex(
+      (item: any) => item.product.toString() === productId,
+    );
+
+    if (itemIndex === -1) {
+      return res.status(404).json({ message: "Item not in cart" });
+    }
+
+    cart.items[itemIndex].quantity -= 1;
+
+    // 🔥 auto remove pag 0 na
+    if (cart.items[itemIndex].quantity <= 0) {
+      cart.items.splice(itemIndex, 1);
+    }
+
+    await cart.save();
+
+    const updatedCart = await cart.populate("items.product");
+
+    res.json(updatedCart);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // ✅ REMOVE ITEM
 export const removeFromCart = async (req: AuthRequest, res: Response) => {
   try {
