@@ -61,7 +61,14 @@ export const addToCart = async (req: AuthRequest, res: Response) => {
     }
 
     await cart.save();
-    res.json(cart);
+
+    // 🔥 IMPORTANT FIX (ETO ANG KULANG MO)
+    await cart.populate("items.product");
+
+    res.json({
+      message: "Item added to cart",
+      items: cart.items,
+    });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
@@ -150,7 +157,14 @@ export const removeFromCart = async (req: AuthRequest, res: Response) => {
     );
 
     await cart.save();
-    res.json(cart);
+
+    // 🔥 IMPORTANT (same fix)
+    await cart.populate("items.product");
+
+    res.json({
+      message: "Item removed",
+      items: cart.items,
+    });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
