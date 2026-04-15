@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import Order from "../models/order.model";
 import Cart from "../models/cart.model";
-
+import { orderSchema } from "../validators/orderValidator";
 interface AuthRequest extends Request {
   user?: any;
 }
@@ -9,7 +9,17 @@ interface AuthRequest extends Request {
 // ✅ CREATE ORDER
 export const createOrder = async (req: AuthRequest, res: Response) => {
   try {
-    const { shippingAddress, paymentMethod } = req.body;
+    // ✅ VALIDATION FIRST
+    const parsed = orderSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      return res.status(400).json({
+        message: "Invalid input",
+        errors: parsed.error.flatten().fieldErrors,
+      });
+    }
+
+    const { shippingAddress, paymentMethod } = parsed.data;
 
     const cart = await Cart.findOne({ user: req.user._id }).populate(
       "items.product",
@@ -19,6 +29,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message: "Cart is empty" });
     }
 
+    // ✅ NEVER TRUST FRONTEND PRICE
     const orderItems = cart.items.map((item: any) => ({
       product: item.product._id,
       name: item.product.title,
@@ -40,7 +51,6 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
       totalPrice,
     });
 
-    // clear cart
     cart.items = [];
     await cart.save();
 
