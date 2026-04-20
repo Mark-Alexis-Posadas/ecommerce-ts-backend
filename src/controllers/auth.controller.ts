@@ -94,3 +94,21 @@ export const loginUser = async (req: Request, res: Response) => {
     });
   }
 };
+
+export const logoutUser = async (req: Request, res: Response) => {
+  try {
+    // If using cookies, clear it
+    res.cookie("token", "", {
+      httpOnly: true,
+      expires: new Date(0),
+    });
+
+    res.status(200).json({
+      message: "Logged out successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Server error",
+    });
+  }
+};
