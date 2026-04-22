@@ -1,6 +1,17 @@
-import mongoose from "mongoose";
+import mongoose, { Document, Types } from "mongoose";
 
-const cartSchema = new mongoose.Schema(
+interface CartItem {
+  product: Types.ObjectId;
+  quantity: number;
+  price: number;
+}
+
+export interface CartDocument extends Document {
+  user: Types.ObjectId;
+  items: Types.DocumentArray<CartItem>;
+}
+
+const cartSchema = new mongoose.Schema<CartDocument>(
   {
     user: {
       type: mongoose.Schema.Types.ObjectId,
@@ -12,12 +23,19 @@ const cartSchema = new mongoose.Schema(
           type: mongoose.Schema.Types.ObjectId,
           ref: "Product",
         },
-        quantity: Number,
-        price: Number,
+        quantity: {
+          type: Number,
+          required: true,
+          default: 1, // 🔥 importante
+        },
+        price: {
+          type: Number,
+          required: true,
+        },
       },
     ],
   },
   { timestamps: true },
 );
 
-export default mongoose.model("Cart", cartSchema);
+export default mongoose.model<CartDocument>("Cart", cartSchema);

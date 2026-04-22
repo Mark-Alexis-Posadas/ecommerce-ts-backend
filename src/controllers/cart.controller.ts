@@ -47,11 +47,12 @@ export const addToCart = async (req: AuthRequest, res: Response) => {
     }
 
     const itemIndex = cart.items.findIndex(
-      (item: any) => item.product.toString() === productId,
+      (item) => item.product.toString() === productId,
     );
 
     if (itemIndex > -1) {
-      cart.items[itemIndex].quantity += quantity;
+      cart.items[itemIndex].quantity =
+        (cart.items[itemIndex].quantity || 0) + quantity;
     } else {
       cart.items.push({
         product: productId,
@@ -86,14 +87,14 @@ export const incrementQty = async (req: AuthRequest, res: Response) => {
     }
 
     const itemIndex = cart.items.findIndex(
-      (item: any) => item.product.toString() === productId,
+      (item) => item.product.toString() === productId,
     );
 
     if (itemIndex === -1) {
       return res.status(404).json({ message: "Item not in cart" });
     }
 
-    cart.items[itemIndex].quantity += 1;
+    cart.items[itemIndex].quantity = (cart.items[itemIndex].quantity || 0) + 1;
 
     await cart.save();
 
@@ -117,14 +118,14 @@ export const decrementQty = async (req: AuthRequest, res: Response) => {
     }
 
     const itemIndex = cart.items.findIndex(
-      (item: any) => item.product.toString() === productId,
+      (item) => item.product.toString() === productId,
     );
 
     if (itemIndex === -1) {
       return res.status(404).json({ message: "Item not in cart" });
     }
 
-    cart.items[itemIndex].quantity -= 1;
+    cart.items[itemIndex].quantity = (cart.items[itemIndex].quantity || 0) - 1;
 
     // 🔥 auto remove pag 0 na
     if (cart.items[itemIndex].quantity <= 0) {
@@ -152,13 +153,10 @@ export const removeFromCart = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: "Cart not found" });
     }
 
-    cart.items = cart.items.filter(
-      (item: any) => item.product.toString() !== productId,
-    );
+    cart.items.pull({ product: productId });
 
     await cart.save();
 
-    // 🔥 IMPORTANT (same fix)
     await cart.populate("items.product");
 
     res.json({
@@ -176,7 +174,7 @@ export const clearCart = async (req: AuthRequest, res: Response) => {
     const cart = await Cart.findOne({ user: req.user._id });
 
     if (cart) {
-      cart.items = [];
+      cart.items.splice(0, cart.items.length);
       await cart.save();
     }
 
