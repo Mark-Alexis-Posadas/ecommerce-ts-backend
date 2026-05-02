@@ -7,7 +7,7 @@ import userRoutes from "./routes/user.routes";
 import authRoutes from "./routes/auth.routes";
 import cartRoutes from "./routes/cart.routes";
 import orderRoutes from "./routes/order.routes";
-
+import categoryRoutes from "./routes/category.routes";
 const app = express();
 
 // ✅ CORS (good for dev)
@@ -28,6 +28,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/categories", categoryRoutes);
 
 // ✅ health check (optional pero useful)
 app.get("/", (req, res) => {

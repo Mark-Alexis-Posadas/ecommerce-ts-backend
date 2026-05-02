@@ -1,65 +1,66 @@
 import { Request, Response } from "express";
 import Product from "../models/product.model";
-
+import { Category } from "../models/category.model";
+import mongoose from "mongoose";
 export const getProducts = async (req: Request, res: Response) => {
   try {
-    // query params
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
 
+    const search = (req.query.search as string) || "";
+    const sort = (req.query.sort as string) || "";
+    const category = (req.query.category as string) || "";
+
     const skip = (page - 1) * limit;
 
-    // data
+    const query: any = {};
+
+    if (search) {
+      query.title = { $regex: search, $options: "i" };
+    }
+
+    if (category) {
+      query.category = category;
+    }
+
+    let sortOption: any = { createdAt: -1 };
+
+    if (sort === "low_to_high") sortOption = { price: 1 };
+    if (sort === "high_to_low") sortOption = { price: -1 };
+    if (sort === "latest") sortOption = { createdAt: -1 };
+
+    // 🔥 DITO MO ILALAGAY
     const [products, total] = await Promise.all([
-      Product.find()
-        .sort({ createdAt: -1 }) // latest first (better UX)
+      Product.find(query)
+        .populate("category") // 👈 HERE
+        .sort(sortOption)
         .skip(skip)
         .limit(limit),
-      Product.countDocuments(),
+
+      Product.countDocuments(query),
     ]);
 
     const totalPages = Math.ceil(total / limit);
 
-    // meta
-    const meta = {
-      page,
-      limit,
-      total,
-      totalPages,
-      hasNextPage: page < totalPages,
-      hasPrevPage: page > 1,
-    };
-
-    // build base URL (dynamic)
-    const baseUrl = `${req.protocol}://${req.get("host")}${req.baseUrl}${req.path}`;
-
-    // links
-    const links = {
-      next: meta.hasNextPage
-        ? `${baseUrl}?page=${page + 1}&limit=${limit}`
-        : null,
-      prev: meta.hasPrevPage
-        ? `${baseUrl}?page=${page - 1}&limit=${limit}`
-        : null,
-    };
-
     res.json({
       data: products,
-      meta,
-      links,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+      },
     });
   } catch (error) {
     res.status(500).json({
-      error: {
-        message: "Failed to fetch products",
-      },
+      message: "Failed to fetch products",
     });
   }
 };
 
 export const getProductById = async (req: Request, res: Response) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const product = await Product.findById(req.params.id).populate("category");
 
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
@@ -71,9 +72,27 @@ export const getProductById = async (req: Request, res: Response) => {
   }
 };
 
-export const createProduct = async (req: Request, res: Response) => {
+export const createProduct = async (req, res) => {
   try {
-    const product = await Product.create(req.body);
+    const { category } = req.body;
+
+    // ✅ check if valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(category)) {
+      return res.status(400).json({ message: "Invalid category ID format" });
+    }
+
+    // ✅ check if category exists
+    const existingCategory = await Category.findById(category);
+
+    if (!existingCategory) {
+      return res.status(400).json({ message: "Category not found" });
+    }
+
+    const product = await Product.create({
+      ...req.body,
+      category,
+    });
+
     res.status(201).json(product);
   } catch (error) {
     res.status(400).json({ message: "Failed to create product" });
@@ -112,7 +131,7 @@ export const deleteProduct = async (req: Request, res: Response) => {
 
 export const getCategories = async (req: Request, res: Response) => {
   try {
-    const categories = await Product.distinct("category");
+    const categories = await Category.find().sort({ createdAt: -1 });
 
     res.json({
       data: categories,
