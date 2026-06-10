@@ -1,21 +1,40 @@
 import { Request, Response } from "express";
 import { Category } from "../models/category.model";
-import { Product } from "../models/product.model";
+import Product from "../models/product.model";
+
 export const createCategory = async (req: Request, res: Response) => {
   try {
-    const { name } = req.body;
+    const { name, description, image, isActive } = req.body;
 
     if (!name) {
-      return res.status(400).json({ message: "Category name required" });
+      return res.status(400).json({
+        message: "Category name is required",
+      });
     }
 
-    const existing = await Category.findOne({ name });
+    const existingCategory = await Category.findOne({
+      name: { $regex: `^${name}$`, $options: "i" },
+    });
 
-    if (existing) {
-      return res.status(400).json({ message: "Category already exists" });
+    if (existingCategory) {
+      return res.status(400).json({
+        message: "Category already exists",
+      });
     }
 
-    const category = await Category.create({ name });
+    const slug = name
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, "-")
+      .replace(/[^\w-]/g, "");
+
+    const category = await Category.create({
+      name,
+      slug,
+      description,
+      image,
+      isActive,
+    });
 
     res.status(201).json(category);
   } catch (error) {
@@ -29,14 +48,17 @@ export const deleteCategory = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    // check if category exists
     const category = await Category.findById(id);
+
     if (!category) {
-      return res.status(404).json({ message: "Category not found" });
+      return res.status(404).json({
+        message: "Category not found",
+      });
     }
 
-    // OPTIONAL BUT IMPORTANT: check if ginagamit sa products
-    const productsUsingCategory = await Product.findOne({ category: id });
+    const productsUsingCategory = await Product.findOne({
+      category: id,
+    });
 
     if (productsUsingCategory) {
       return res.status(400).json({
@@ -46,7 +68,9 @@ export const deleteCategory = async (req: Request, res: Response) => {
 
     await Category.findByIdAndDelete(id);
 
-    res.json({ message: "Category deleted successfully" });
+    res.json({
+      message: "Category deleted successfully",
+    });
   } catch (error) {
     res.status(500).json({
       message: "Failed to delete category",
