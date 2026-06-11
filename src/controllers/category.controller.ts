@@ -2,6 +2,19 @@ import { Request, Response } from "express";
 import { Category } from "../models/category.model";
 import Product from "../models/product.model";
 
+export const getCategories = async (req: Request, res: Response) => {
+  try {
+    const categories = await Category.find().sort({
+      createdAt: -1,
+    });
+
+    res.status(200).json(categories);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to fetch categories",
+    });
+  }
+};
 export const createCategory = async (req: Request, res: Response) => {
   try {
     const { name, description, image, isActive } = req.body;
@@ -40,6 +53,51 @@ export const createCategory = async (req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({
       message: "Failed to create category",
+    });
+  }
+};
+
+export const updateCategory = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const { name, description, image, isActive } = req.body;
+
+    const category = await Category.findById(id);
+
+    if (!category) {
+      return res.status(404).json({
+        message: "Category not found",
+      });
+    }
+
+    const slug = name
+      ? name
+          .toLowerCase()
+          .trim()
+          .replace(/\s+/g, "-")
+          .replace(/[^\w-]/g, "")
+      : category.slug;
+
+    const updatedCategory = await Category.findByIdAndUpdate(
+      id,
+      {
+        name,
+        slug,
+        description,
+        image,
+        isActive,
+      },
+      {
+        new: true,
+        runValidators: true,
+      },
+    );
+
+    res.status(200).json(updatedCategory);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to update category",
     });
   }
 };
