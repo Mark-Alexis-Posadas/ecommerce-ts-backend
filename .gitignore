@@ -32,3 +32,7 @@ coverage/
 
 # 🔒 Misc
 *.pem
+# Track shared editor tooling while keeping other local VS Code files ignored.
+!.vscode/
+.vscode/*
+!.vscode/settings.json
