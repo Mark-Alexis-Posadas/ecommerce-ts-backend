@@ -43,8 +43,7 @@ reservations, transactionality or variant inventory.
 `{data}`. Both hide inactive categories by default. Admins can request
 `visibility=all`. Category mutations remain admin-only and validate names, slugs,
 descriptions, images and availability. Slugs may be supplied or generated from the
-name. Duplicate names are checked case-insensitively; duplicate names/slugs return
-409. DELETE now deactivates instead of removing the document. Deactivation is
+name. Duplicate names are checked case-insensitively; duplicate names/slugs return 409. DELETE now deactivates instead of removing the document. Deactivation is
 blocked with 409 while active products reference the category. Restoration uses
 PUT with isActive=true.
 

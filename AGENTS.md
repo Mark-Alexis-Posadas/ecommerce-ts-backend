@@ -70,8 +70,8 @@ files so individual repositories remain self-contained.
 ## Backend workflow
 
 - Express/TypeScript/Mongoose with Zod. Preserve server-side roles, ownership and COD-only validation.
-- Use npm run typecheck and npm test in this directory. There is currently no backend lint/build script;
-  do not claim one ran. Frontend packages own their existing lint/build scripts.
+- Use npm run typecheck, npm run lint and npm test in this directory. ESLint checks TypeScript,
+  Node tests and tooling configuration with Prettier compatibility. No backend build script exists.
 - Read CART_INVENTORY.md, CATALOG.md and AUTHENTICATION.md before changing those business flows.
 - Cart validation does not reserve/deduct inventory. Transactional checkout requires separate approval.
 - Never run provisioning, password reset, migration or index commands as part of routine verification.

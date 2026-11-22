@@ -106,17 +106,17 @@ merges/deletes carts. No migration was executed during implementation.
 An operator must first inspect current indexes and audit the intended database:
 
 ```js
-db.carts.getIndexes()
+db.carts.getIndexes();
 db.carts.aggregate([
-  {$group: {_id: "$user", ids: {$push: "$_id"}, count: {$sum: 1}}},
-  {$match: {count: {$gt: 1}}}
-])
-db.carts.find({$or: [{user: {$exists: false}}, {user: null}]}, {_id: 1, user: 1})
+  { $group: { _id: '$user', ids: { $push: '$_id' }, count: { $sum: 1 } } },
+  { $match: { count: { $gt: 1 } } },
+]);
+db.carts.find({ $or: [{ user: { $exists: false } }, { user: null }] }, { _id: 1, user: 1 });
 db.carts.aggregate([
-  {$unwind: "$items"},
-  {$group: {_id: {cart: "$_id", product: "$items.product"}, count: {$sum: 1}}},
-  {$match: {count: {$gt: 1}}}
-])
+  { $unwind: '$items' },
+  { $group: { _id: { cart: '$_id', product: '$items.product' }, count: { $sum: 1 } } },
+  { $match: { count: { $gt: 1 } } },
+]);
 ```
 
 Also audit invalid/unsafe quantities, missing item product IDs, invalid version
@@ -128,7 +128,7 @@ obtain explicit approval for reconciliation rules and the migration. Only after 
 clean audit and approval should an operator run:
 
 ```js
-db.carts.createIndex({user: 1}, {unique: true, name: "unique_cart_user"})
+db.carts.createIndex({ user: 1 }, { unique: true, name: 'unique_cart_user' });
 ```
 
 Do not execute the createIndex example against unverified existing data. Recheck

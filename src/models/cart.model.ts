@@ -1,4 +1,4 @@
-import mongoose, { Document, Types } from "mongoose";
+import mongoose, { Document, Types } from 'mongoose';
 
 interface CartItem {
   product: Types.ObjectId;
@@ -15,14 +15,14 @@ const cartSchema = new mongoose.Schema<CartDocument>(
   {
     user: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: 'User',
       required: true,
     },
     items: [
       {
         product: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: "Product",
+          ref: 'Product',
           required: true,
         },
         quantity: {
@@ -43,6 +43,6 @@ const cartSchema = new mongoose.Schema<CartDocument>(
 );
 
 // Declarative only: deploy after an approved duplicate-cart audit. Never syncIndexes at startup.
-cartSchema.index({ user: 1 }, { unique: true, name: "unique_cart_user" });
+cartSchema.index({ user: 1 }, { unique: true, name: 'unique_cart_user' });
 
-export default mongoose.model<CartDocument>("Cart", cartSchema);
+export default mongoose.model<CartDocument>('Cart', cartSchema);

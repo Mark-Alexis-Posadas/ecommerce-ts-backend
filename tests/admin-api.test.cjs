@@ -1,4 +1,65 @@
-const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const path=require('node:path');const vm=require('node:vm');const ts=require('typescript');const axios=require('axios');
-function load(file,extra={}){const exports={};const source=fs.readFileSync(path.resolve(__dirname,'../../ecommerce-admin-panel/src/'+file),'utf8').replace('import.meta.env.VITE_API_URL','"http://test.invalid"');const code=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;vm.runInNewContext(code,{exports,require,Event,...extra});return exports;}
-test('admin API attaches its own token and expires only matching unauthorized sessions',async()=>{let token='test-token';let events=0;const {api}=load('services/api.ts',{localStorage:{getItem:()=>token},window:{dispatchEvent:()=>{events++}}});await api.get('/protected',{adapter:async config=>{assert.equal(config.headers.Authorization,'Bearer test-token');return{data:{},status:200,headers:{},statusText:'OK',config}}});await assert.rejects(api.get('/protected',{adapter:async config=>{throw new axios.AxiosError('unauthorized','ERR_BAD_REQUEST',config,undefined,{status:401,data:{},headers:{},statusText:'Unauthorized',config})}}));assert.equal(events,1);token=null;});
-test('login errors distinguish credentials, role, network and server failures',()=>{const {AdminAccessError,adminLoginError}=load('services/authErrors.ts');assert.match(adminLoginError(new AdminAccessError()),/administrator access/);assert.match(adminLoginError(new axios.AxiosError('network')),/Cannot reach/);for(const [status,pattern] of [[401,/Incorrect email or password/],[403,/administrator access/],[500,/server is unavailable/]])assert.match(adminLoginError(new axios.AxiosError('error',undefined,undefined,undefined,{status})),pattern)});
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const ts = require('typescript');
+const axios = require('axios');
+function load(file, extra = {}) {
+  const exports = {};
+  const source = fs
+    .readFileSync(path.resolve(__dirname, '../../ecommerce-admin-panel/src/' + file), 'utf8')
+    .replace('import.meta.env.VITE_API_URL', '"http://test.invalid"');
+  const code = ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  vm.runInNewContext(code, { exports, require, Event, ...extra });
+  return exports;
+}
+test('admin API attaches its own token and expires only matching unauthorized sessions', async () => {
+  let token = 'test-token';
+  let events = 0;
+  const { api } = load('services/api.ts', {
+    localStorage: { getItem: () => token },
+    window: {
+      dispatchEvent: () => {
+        events++;
+      },
+    },
+  });
+  await api.get('/protected', {
+    adapter: async (config) => {
+      assert.equal(config.headers.Authorization, 'Bearer test-token');
+      return { data: {}, status: 200, headers: {}, statusText: 'OK', config };
+    },
+  });
+  await assert.rejects(
+    api.get('/protected', {
+      adapter: async (config) => {
+        throw new axios.AxiosError('unauthorized', 'ERR_BAD_REQUEST', config, undefined, {
+          status: 401,
+          data: {},
+          headers: {},
+          statusText: 'Unauthorized',
+          config,
+        });
+      },
+    }),
+  );
+  assert.equal(events, 1);
+  token = null;
+});
+test('login errors distinguish credentials, role, network and server failures', () => {
+  const { AdminAccessError, adminLoginError } = load('services/authErrors.ts');
+  assert.match(adminLoginError(new AdminAccessError()), /administrator access/);
+  assert.match(adminLoginError(new axios.AxiosError('network')), /Cannot reach/);
+  for (const [status, pattern] of [
+    [401, /Incorrect email or password/],
+    [403, /administrator access/],
+    [500, /server is unavailable/],
+  ])
+    assert.match(
+      adminLoginError(new axios.AxiosError('error', undefined, undefined, undefined, { status })),
+      pattern,
+    );
+});

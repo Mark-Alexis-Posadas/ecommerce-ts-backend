@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 export const orderSchema = z.object({
   shippingAddress: z.object({
@@ -9,5 +9,5 @@ export const orderSchema = z.object({
     postalCode: z.string().min(4),
     phone: z.string().min(10),
   }),
-  paymentMethod: z.literal("COD"),
+  paymentMethod: z.literal('COD'),
 });
