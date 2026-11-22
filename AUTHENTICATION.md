@@ -36,6 +36,35 @@ normalized email, and promotes only that existing account. It does not create
 accounts or accept passwords. Do not run without approval for the selected
 database/account. This implementation did not run provisioning or migrations.
 
+Before promotion, verify the account without changing records:
+
+```sh
+node -r ts-node/register src/scripts/provisionAdmin.ts <account-email> --dry-run
+```
+
+Both modes require exactly one account matching the normalized email. Duplicate
+accounts fail closed; resolve duplicates through a separately approved process.
+The CLI disables automatic index creation and never prints credentials.
+
+### Troubleshooting admin login
+
+A registered customer is not an administrator. A successful backend login can
+therefore be followed by an intentional dashboard rejection. Verify the role with
+the dry-run command before treating the rejection as a credential failure.
+
+The admin login screen distinguishes invalid credentials, insufficient role,
+server failures and network/CORS failures. Authentication requests time out after
+10 seconds. Session restoration validates `/api/auth/me` before rendering admin
+pages; customer sessions are cleared immediately. Logout clears the session and
+loading state, and logout in another tab invalidates this tab's admin session.
+Only the reactive admin user state redirects from login to the dashboard.
+
+For local development, the API must be reachable at the configured VITE_API_URL
+and the browser's exact frontend origin must appear in CORS_ORIGINS (or match a
+documented local default). Restart Vite/backend after changing their environment
+configuration. Never solve a role rejection by weakening the dashboard guard or
+adding public admin signup.
+
 ## Sessions and deployment
 
 JWTs use HS256 and expire after seven days. Configure a strong private JWT_SECRET

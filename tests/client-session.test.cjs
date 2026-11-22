@@ -7,7 +7,7 @@ function harness(admin){
  const api={post:async()=>({data:{...user,role,token}}),get:async()=>{profileCalls++;return {data:{...user,role}}}};
  const file=path.resolve(__dirname,'../../'+(admin?'ecommerce-admin-panel':'ecommerce-ts')+'/src/context/AuthProvider.tsx');
  const code=ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText;
- const exports={};vm.runInNewContext(code,{exports,require:n=>n==='react'?React:n==='react/jsx-runtime'?{jsx:(type,props)=>({type,props})}:n.includes('AuthContext')?{AuthContext:{Provider:'Provider'}}:{api,TOKEN_KEY:'test-token'},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},window:{addEventListener:(k,f)=>events.set(k,f),removeEventListener:k=>events.delete(k),setTimeout:()=>1,clearTimeout:()=>{}},atob:s=>Buffer.from(s,'base64').toString(),Date,Error});
+ const exports={};vm.runInNewContext(code,{exports,require:n=>n==='react'?React:n==='react/jsx-runtime'?{jsx:(type,props)=>({type,props})}:n.includes('AuthContext')?{AuthContext:{Provider:'Provider'}}:n.includes('authErrors')?{AdminAccessError:class extends Error { constructor(){super('Admin access required')} }}:{api,TOKEN_KEY:'test-token'},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},window:{addEventListener:(k,f)=>events.set(k,f),removeEventListener:k=>events.delete(k),setTimeout:()=>1,clearTimeout:()=>{}},atob:s=>Buffer.from(s,'base64').toString(),Date,Error});
  const render=()=>{cursor=0;return exports.AuthProvider({children:null}).props.value};
  return {render,flush:async()=>{while(effects.length)effects.shift()();await new Promise(r=>setImmediate(r));},storage,events,setRole:r=>{role=r},profileCalls:()=>profileCalls};
 }
@@ -27,3 +27,6 @@ test('cart actually hydrates on login and clears on logout with mocked HTTP and 
  const render=()=>{cursor=0;return exports.CartProvider({children:null}).props.value};const flush=async()=>{while(effects.length)effects.shift()();await new Promise(r=>setImmediate(r))};
  render();await flush();assert.equal(calls,0);token='session';render();await flush();assert.equal(calls,1);assert.equal(render().cartItems.length,1);token=null;render();await flush();assert.equal(render().cartItems.length,0);
 });
+
+test('admin refresh rejects stored customer credentials immediately',async()=>{const h=harness(true);h.setRole('customer');h.storage.set('test-token','stored');h.render();await h.flush();assert.equal(h.render().user,null);assert.equal(h.storage.has('test-token'),false);assert.equal(h.render().loading,false)});
+test('admin login and logout update reactive state',async()=>{const h=harness(true);const session=h.render();await session.login('admin@example.test','password');assert.equal(h.render().user.role,'admin');assert.ok(h.storage.has('test-token'));h.render().logout();assert.equal(h.render().user,null);assert.equal(h.render().token,null);assert.equal(h.render().loading,false)});
