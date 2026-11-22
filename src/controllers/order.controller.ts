@@ -1,55 +1,21 @@
-import Product from "../models/product.model";
-import { productAvailable } from "../services/productAvailability";
-import { Request, Response } from "express";
-import { isValidObjectId } from "mongoose";
-import Order from "../models/order.model";
-import Cart from "../models/cart.model";
-import { orderSchema } from "../validators/orderValidator";
-type AuthRequest = Request;
-// ✅ CREATE ORDER
-export const createOrder = async (req: AuthRequest, res: Response) => {
-    try {
-        // ✅ VALIDATION FIRST
-        const parsed = orderSchema.safeParse(req.body);
-        if (!parsed.success) {
-            return res.status(400).json({
-                message: "Invalid input",
-                errors: parsed.error.flatten().fieldErrors,
-            });
-        }
-        const { shippingAddress, paymentMethod } = parsed.data;
-        const cart = await Cart.findOne({ user: req.user!._id }).populate("items.product");
-        if (!cart || cart.items.length === 0) {
-            return res.status(400).json({ message: "Cart is empty" });
-        }
-        // ✅ NEVER TRUST FRONTEND PRICE
-        for (const item of cart.items) {
-            const product = await Product.findById(item.product);
-            if (!await productAvailable(product))
-                return res.status(409).json({ message: 'Cart contains unavailable products' });
-        }
-        const orderItems = cart.items.map((item: any) => ({
-            product: item.product._id,
-            name: item.product.title,
-            qty: item.quantity,
-            price: item.price,
-            image: item.product.image,
-        }));
-        const totalPrice = cart.items.reduce((acc: number, item: any) => acc + item.price * item.quantity, 0);
-        const order = await Order.create({
-            user: req.user!._id,
-            orderItems,
-            shippingAddress,
-            paymentMethod,
-            totalPrice,
-        });
-        cart.items.splice(0, cart.items.length);
-        await cart.save();
-        res.status(201).json(order);
-    }
-    catch (error: any) {
-        res.status(500).json({ message: error.message });
-    }
+import {Request,Response} from 'express';
+import {isValidObjectId} from 'mongoose';
+import Order from '../models/order.model';
+import {orderSchema} from '../validators/orderValidator';
+import {prepareCartForCheckout,cartDependencies,CartError} from '../services/cart.service';
+import {cartError} from './cart.controller';
+type AuthRequest=Request;
+export const createOrder=async(req:Request,res:Response)=>{
+ try{
+  const parsed=orderSchema.safeParse(req.body);if(!parsed.success)return res.status(400).json({message:'Invalid input',errors:parsed.error.flatten().fieldErrors});
+  const {stored,cart,orderItems}=await prepareCartForCheckout(req.user!._id);
+  const order=await Order.create({user:req.user!._id,orderItems,...parsed.data,totalPrice:cart.subtotalCentavos/100});
+  const cleared=await cartDependencies.repository.compareSwap(stored,[]);
+  return res.status(201).json({...order.toObject(),cartClearConflict:!cleared});
+ }catch(error){
+  if(error instanceof CartError)return cartError(res,error);
+  return res.status(500).json({code:'ORDER_ERROR',message:'Unable to complete the order. Check your order history before retrying.'});
+ }
 };
 // ✅ GET MY ORDERS
 export const getMyOrders = async (req: AuthRequest, res: Response) => {

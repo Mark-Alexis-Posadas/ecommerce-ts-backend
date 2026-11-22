@@ -1,3 +1,4 @@
+import {lowStockThreshold} from "../config/inventory";
 import { Request, Response } from 'express';
 import { FilterQuery, Types } from 'mongoose';
 import Product from '../models/product.model';
@@ -8,7 +9,12 @@ export const getProducts = async (req: Request, res: Response) => {
         const q = catalogQuerySchema.parse(req.query);
         if (q.visibility !== 'active' && req.user?.role !== 'admin')
             return res.status(403).json({ message: 'Admin access required' });
+        if(q.inventory!=='all' && req.user?.role!=='admin')return res.status(403).json({message:'Admin access required'});
+        const threshold=lowStockThreshold();
         const query: FilterQuery<unknown> = {};
+        if(q.inventory==='in_stock')query.stock={$gt:0};
+        if(q.inventory==='out_of_stock')query.stock=0;
+        if(q.inventory==='low_stock')query.stock={$gt:0,$lte:threshold};
         if (q.visibility === 'active')
             query.isActive = { $ne: false };
         else if (q.visibility === 'archived')
@@ -27,7 +33,7 @@ export const getProducts = async (req: Request, res: Response) => {
         const [data, total] = await Promise.all([Product.aggregate([{ $match: query }, { $set: { priceAfterDiscount: discountedPriceExpression } }, { $sort: sort }, { $skip: (q.page - 1) * q.limit }, { $limit: q.limit }]), Product.countDocuments(query)]);
         await Product.populate(data, { path: "category" });
         const totalPages = Math.ceil(total / q.limit);
-        return res.json({ data, meta: { page: q.page, limit: q.limit, total, totalPages, hasNextPage: q.page < totalPages, hasPrevPage: q.page > 1 } });
+        return res.json({ data:data.map(product=>({...product,inventoryStatus:product.stock<=0?'out_of_stock':product.stock<=threshold?'low_stock':'in_stock'})), meta: { lowStockThreshold:threshold, page: q.page, limit: q.limit, total, totalPages, hasNextPage: q.page < totalPages, hasPrevPage: q.page > 1 } });
     }
     catch (e) {
         return catalogError(res, e);
