@@ -1,42 +1,25 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import User from "../models/user.model";
-
-// 🔥 Extend Request para may user
-export interface AuthRequest extends Request {
-  user?: any;
-}
-
-export const protect = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-) => {
-  let token: string | undefined;
-
-  if (req.headers.authorization?.startsWith("Bearer")) {
-    try {
-      token = req.headers.authorization.split(" ")[1];
-
-      // verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as {
-        id: string;
-      };
-
-      // attach user sa request
-      req.user = await User.findById(decoded.id).select("-password");
-
-      if (!req.user) {
-        return res.status(401).json({ message: "User not found" });
-      }
-
-      next();
-    } catch (error) {
-      return res.status(401).json({ message: "Not authorized, token failed" });
-    }
-  }
-
-  if (!token) {
-    return res.status(401).json({ message: "No token, not authorized" });
-  }
+export interface AuthUser { _id: string; name: string; email: string; role: "customer" | "admin" }
+declare global { namespace Express { interface Request { user?: AuthUser } } }
+export type AuthRequest = Request;
+export const protect = async (req: Request, res: Response, next: NextFunction) => {
+ const match = /^Bearer ([^ ]+)$/i.exec(req.headers.authorization || "");
+ if (!match) return res.status(401).json({ message: "Authentication required" });
+ try {
+ const secret = process.env.JWT_SECRET;
+ if (!secret) throw new Error("Authentication unavailable");
+ const decoded = jwt.verify(match[1], secret, { algorithms: ["HS256"] });
+ if (typeof decoded === "string" || typeof decoded.id !== "string") throw new Error("Invalid token");
+ const user = await User.findById(decoded.id).select("-password");
+ if (!user) throw new Error("Invalid user");
+ req.user = { _id: user._id.toString(), name: user.name, email: user.email, role: user.role === "admin" ? "admin" : "customer" };
+ } catch { return res.status(401).json({ message: "Invalid or expired authentication" }); }
+ next();
+};
+export const adminOnly = (req: Request, res: Response, next: NextFunction) => {
+ if (!req.user) return res.status(401).json({ message: "Authentication required" });
+ if (req.user.role !== "admin") return res.status(403).json({ message: "Admin access required" });
+ next();
 };

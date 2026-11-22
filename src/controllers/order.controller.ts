@@ -1,10 +1,9 @@
 import { Request, Response } from "express";
+import { isValidObjectId } from "mongoose";
 import Order from "../models/order.model";
 import Cart from "../models/cart.model";
 import { orderSchema } from "../validators/orderValidator";
-interface AuthRequest extends Request {
-  user?: any;
-}
+type AuthRequest = Request;
 
 // ✅ CREATE ORDER
 export const createOrder = async (req: AuthRequest, res: Response) => {
@@ -21,7 +20,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
 
     const { shippingAddress, paymentMethod } = parsed.data;
 
-    const cart = await Cart.findOne({ user: req.user._id }).populate(
+    const cart = await Cart.findOne({ user: req.user!._id }).populate(
       "items.product",
     );
 
@@ -44,7 +43,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
     );
 
     const order = await Order.create({
-      user: req.user._id,
+      user: req.user!._id,
       orderItems,
       shippingAddress,
       paymentMethod,
@@ -63,7 +62,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
 // ✅ GET MY ORDERS
 export const getMyOrders = async (req: AuthRequest, res: Response) => {
   try {
-    const orders = await Order.find({ user: req.user._id });
+    const orders = await Order.find({ user: req.user!._id });
 
     res.json(orders);
   } catch (error: any) {
@@ -73,8 +72,9 @@ export const getMyOrders = async (req: AuthRequest, res: Response) => {
 
 // ✅ GET ORDER BY ID
 export const getOrderById = async (req: AuthRequest, res: Response) => {
+ if (!isValidObjectId(req.params.id)) return res.status(404).json({ message: "Order not found" });
   try {
-    const order = await Order.findById(req.params.id).populate(
+    const order = await Order.findOne({ _id: req.params.id, user: req.user!._id }).populate(
       "user",
       "name email",
     );

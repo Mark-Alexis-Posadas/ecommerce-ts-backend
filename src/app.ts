@@ -13,7 +13,7 @@ const app = express();
 // ✅ CORS (good for dev)
 app.use(
   cors({
-    origin: true,
+    origin: (process.env.CORS_ORIGINS || "http://localhost:5173,http://localhost:5174").split(",").map(origin => origin.trim()),
     credentials: true,
   }),
 );

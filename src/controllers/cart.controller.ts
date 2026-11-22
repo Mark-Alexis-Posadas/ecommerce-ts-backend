@@ -3,20 +3,18 @@ import Cart from "../models/cart.model";
 import Product from "../models/product.model";
 
 // extend Request para may user
-interface AuthRequest extends Request {
-  user?: any;
-}
+type AuthRequest = Request;
 
 // ✅ GET CART
 export const getCart = async (req: AuthRequest, res: Response) => {
   try {
-    let cart = await Cart.findOne({ user: req.user._id }).populate(
+    let cart = await Cart.findOne({ user: req.user!._id }).populate(
       "items.product",
     );
 
     if (!cart) {
       cart = await Cart.create({
-        user: req.user._id,
+        user: req.user!._id,
         items: [],
       });
     }
@@ -37,11 +35,11 @@ export const addToCart = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    let cart = await Cart.findOne({ user: req.user._id });
+    let cart = await Cart.findOne({ user: req.user!._id });
 
     if (!cart) {
       cart = await Cart.create({
-        user: req.user._id,
+        user: req.user!._id,
         items: [],
       });
     }
@@ -80,7 +78,7 @@ export const incrementQty = async (req: AuthRequest, res: Response) => {
   try {
     const { productId } = req.body;
 
-    const cart = await Cart.findOne({ user: req.user._id });
+    const cart = await Cart.findOne({ user: req.user!._id });
 
     if (!cart) {
       return res.status(404).json({ message: "Cart not found" });
@@ -111,7 +109,7 @@ export const decrementQty = async (req: AuthRequest, res: Response) => {
   try {
     const { productId } = req.body;
 
-    const cart = await Cart.findOne({ user: req.user._id });
+    const cart = await Cart.findOne({ user: req.user!._id });
 
     if (!cart) {
       return res.status(404).json({ message: "Cart not found" });
@@ -147,7 +145,7 @@ export const removeFromCart = async (req: AuthRequest, res: Response) => {
   try {
     const { productId } = req.params;
 
-    const cart = await Cart.findOne({ user: req.user._id });
+    const cart = await Cart.findOne({ user: req.user!._id });
 
     if (!cart) {
       return res.status(404).json({ message: "Cart not found" });
@@ -171,7 +169,7 @@ export const removeFromCart = async (req: AuthRequest, res: Response) => {
 // ✅ CLEAR CART
 export const clearCart = async (req: AuthRequest, res: Response) => {
   try {
-    const cart = await Cart.findOne({ user: req.user._id });
+    const cart = await Cart.findOne({ user: req.user!._id });
 
     if (cart) {
       cart.items.splice(0, cart.items.length);
