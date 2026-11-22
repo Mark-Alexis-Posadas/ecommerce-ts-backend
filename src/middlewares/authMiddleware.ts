@@ -43,3 +43,4 @@ export const adminOnly = (req: Request, res: Response, next: NextFunction) => {
         return res.status(403).json({ message: "Admin access required" });
     next();
 };
+export const optionalAuth = (req: Request, res: Response, next: NextFunction) => req.headers.authorization ? protect(req, res, next) : next();

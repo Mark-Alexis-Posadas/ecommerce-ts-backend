@@ -10,8 +10,8 @@ test('isolated HTTP authentication and authorization (no database connection)',a
  User.findById=()=>({select:async()=>current});User.findOne=async()=>null;
  User.create=async data=>{created=data;return {...customer,...data}};
  User.find=()=>({select:()=>({sort:async()=>[customer]})});
- Category.find=()=>({sort:async()=>[]});
- Product.find=()=>({populate(){return this},sort(){return this},skip(){return this},limit:async()=>[]});Product.countDocuments=async()=>0;
+ Category.distinct=async()=>[];Category.find=()=>({sort:async()=>[]});
+ Product.find=()=>({populate(){return this},sort(){return this},skip(){return this},limit:async()=>[]});Product.countDocuments=async()=>0;Product.aggregate=async()=>[];Product.populate=async data=>data;
  Order.findOne=query=>{orderQuery=query;return {populate:async()=>null}};
  const server=app.listen(0,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));
  const base='http://127.0.0.1:'+server.address().port;

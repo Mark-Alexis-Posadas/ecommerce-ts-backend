@@ -1,144 +1,91 @@
-import { Request, Response } from "express";
-import Product from "../models/product.model";
-import { Category } from "../models/category.model";
-import mongoose from "mongoose";
+import { Request, Response } from 'express';
+import { FilterQuery, Types } from 'mongoose';
+import Product from '../models/product.model';
+import { Category } from '../models/category.model';
+import { createProductSchema, updateProductSchema, catalogQuerySchema, objectId, catalogError, escapeRegex, discountedPrice, discountedPriceExpression } from '../validators/catalogValidator';
 export const getProducts = async (req: Request, res: Response) => {
-  try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-
-    const search = (req.query.search as string) || "";
-    const sort = (req.query.sort as string) || "";
-    const category = (req.query.category as string) || "";
-
-    const skip = (page - 1) * limit;
-
-    const query: any = {};
-
-    if (search) {
-      query.title = { $regex: search, $options: "i" };
+    try {
+        const q = catalogQuerySchema.parse(req.query);
+        if (q.visibility !== 'active' && req.user?.role !== 'admin')
+            return res.status(403).json({ message: 'Admin access required' });
+        const query: FilterQuery<unknown> = {};
+        if (q.visibility === 'active')
+            query.isActive = { $ne: false };
+        else if (q.visibility === 'archived')
+            query.isActive = false;
+        if (req.user?.role !== 'admin' || q.visibility === 'active') {
+            const ids = await Category.distinct('_id', { isActive: { $ne: false } });
+            query.category = { $in: q.category ? ids.filter(id => String(id) === q.category.toLowerCase()) : ids };
+        }
+        else if (q.category)
+            query.category = new Types.ObjectId(q.category);
+        if (q.search)
+            query.$or = ['title', 'description', 'brand'].map(field => ({ [field]: { $regex: escapeRegex(q.search), $options: 'i' } }));
+        if (q.featured !== undefined)
+            query.isFeatured = q.featured === 'true';
+        const sort: Record<string, 1 | -1> = q.sort === 'low_to_high' ? { priceAfterDiscount: 1, _id: 1 } : q.sort === 'high_to_low' ? { priceAfterDiscount: -1, _id: 1 } : q.sort === 'top_rated' ? { 'rating.rate': -1, _id: 1 } : q.sort === 'best_selling' ? { sold: -1, _id: 1 } : { createdAt: -1, _id: -1 };
+        const [data, total] = await Promise.all([Product.aggregate([{ $match: query }, { $set: { priceAfterDiscount: discountedPriceExpression } }, { $sort: sort }, { $skip: (q.page - 1) * q.limit }, { $limit: q.limit }]), Product.countDocuments(query)]);
+        await Product.populate(data, { path: "category" });
+        const totalPages = Math.ceil(total / q.limit);
+        return res.json({ data, meta: { page: q.page, limit: q.limit, total, totalPages, hasNextPage: q.page < totalPages, hasPrevPage: q.page > 1 } });
     }
-
-    if (category) {
-      query.category = category;
+    catch (e) {
+        return catalogError(res, e);
     }
-
-    let sortOption: any = { createdAt: -1 };
-
-    if (sort === "low_to_high") sortOption = { price: 1 };
-    if (sort === "high_to_low") sortOption = { price: -1 };
-    if (sort === "latest") sortOption = { createdAt: -1 };
-
-    // 🔥 DITO MO ILALAGAY
-    const [products, total] = await Promise.all([
-      Product.find(query)
-        .populate("category") // 👈 HERE
-        .sort(sortOption)
-        .skip(skip)
-        .limit(limit),
-
-      Product.countDocuments(query),
-    ]);
-
-    const totalPages = Math.ceil(total / limit);
-
-    res.json({
-      data: products,
-      meta: {
-        page,
-        limit,
-        total,
-        totalPages,
-      },
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: "Failed to fetch products",
-    });
-  }
 };
-
-export const getProductById = async (req: Request, res: Response) => {
-  try {
-    const product = await Product.findById(req.params.id).populate("category");
-
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
-
-    res.json(product);
-  } catch (error) {
-    res.status(500).json({ message: "Failed to fetch product" });
-  }
-};
-
-export const createProduct = async (req: Request, res: Response) => {
-  try {
-    const { category } = req.body;
-
-    // ✅ check if valid ObjectId
-    if (!mongoose.Types.ObjectId.isValid(category)) {
-      return res.status(400).json({ message: "Invalid category ID format" });
-    }
-
-    // ✅ check if category exists
-    const existingCategory = await Category.findById(category);
-
-    if (!existingCategory) {
-      return res.status(400).json({ message: "Category not found" });
-    }
-
-    const product = await Product.create({
-      ...req.body,
-      category,
-    });
-
-    res.status(201).json(product);
-  } catch (error) {
-    res.status(400).json({ message: "Failed to create product" });
-  }
-};
-
-export const updateProduct = async (req: Request, res: Response) => {
-  try {
-    const product = await Product.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-    });
-
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
-
-    res.json(product);
-  } catch (error) {
-    res.status(400).json({ message: "Failed to update product" });
-  }
-};
-
-export const deleteProduct = async (req: Request, res: Response) => {
-  try {
-    const product = await Product.findByIdAndDelete(req.params.id);
-
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
-
-    res.json({ message: "Product deleted" });
-  } catch (error) {
-    res.status(500).json({ message: "Failed to delete product" });
-  }
-};
-
-export const getCategories = async (req: Request, res: Response) => {
-  try {
-    const categories = await Category.find().sort({ createdAt: -1 });
-
-    res.json({
-      data: categories,
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: "Failed to fetch categories",
-    });
-  }
-};
+export const getProductById = async (req: Request, res: Response) => { try {
+    if (!objectId.safeParse(req.params.id).success)
+        return res.status(400).json({ message: 'Invalid product ID' });
+    const p = await Product.findById(req.params.id).populate('category');
+    if (!p)
+        return res.status(404).json({ message: 'Product not found' });
+    if (req.user?.role !== 'admin' && (p.isActive === false || !p.category || !await Category.exists({ _id: p.category._id, isActive: { $ne: false } })))
+        return res.status(404).json({ message: 'Product not found' });
+    return res.json({ ...p.toObject(), priceAfterDiscount: discountedPrice(p.price, p.discount) });
+}
+catch (e) {
+    return catalogError(res, e);
+} };
+const validCategory = (id: unknown) => Category.exists({ _id: id, isActive: { $ne: false } });
+export const createProduct = async (req: Request, res: Response) => { try {
+    const data = createProductSchema.parse(req.body);
+    if (!await validCategory(data.category))
+        return res.status(400).json({ message: 'Category unavailable', errors: { category: ['Select an active category'] } });
+    const images = data.images?.length ? data.images : [data.image!];
+    return res.status(201).json(await Product.create({ ...data, images, image: data.image || images[0] }));
+}
+catch (e) {
+    return catalogError(res, e);
+} };
+export const updateProduct = async (req: Request, res: Response) => { try {
+    if (!objectId.safeParse(req.params.id).success)
+        return res.status(400).json({ message: 'Invalid product ID' });
+    const data = updateProductSchema.parse(req.body);
+    const p = await Product.findById(req.params.id);
+    if (!p)
+        return res.status(404).json({ message: 'Product not found' });
+    if (!await validCategory(data.category || p.category))
+        return res.status(400).json({ message: 'Category unavailable', errors: { category: ['Select an active category'] } });
+    p.set(data);
+    if (data.images !== undefined)
+        p.image = data.image || data.images[0];
+    else if (data.image)
+        p.images = [data.image, ...p.images.filter(image => image !== data.image)];
+    await p.save();
+    return res.json(p);
+}
+catch (e) {
+    return catalogError(res, e);
+} };
+export const deleteProduct = async (req: Request, res: Response) => { try {
+    if (!objectId.safeParse(req.params.id).success)
+        return res.status(400).json({ message: 'Invalid product ID' });
+    const p = await Product.findByIdAndUpdate(req.params.id, { $set: { isActive: false } }, { new: true, runValidators: true });
+    if (!p)
+        return res.status(404).json({ message: 'Product not found' });
+    return res.json({ message: 'Product archived', data: p });
+}
+catch (e) {
+    return catalogError(res, e);
+} };
+export { getProductCategories as getCategories } from './category.controller';
