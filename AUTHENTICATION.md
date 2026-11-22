@@ -67,6 +67,41 @@ adding public admin signup.
 
 ## Sessions and deployment
 
+### Interactive administrator password reset
+
+Run this manually in an interactive PowerShell terminal, from the backend folder:
+
+```powershell
+cd C:\Users\Alexis\Desktop\fullstack-projects\fullstack\ecommerce-ts-backend
+node -r ts-node/register src/scripts/resetAdminPassword.ts alexis@example.com
+```
+
+The script reads the existing backend database configuration. Verify that it
+targets the intended database before running it. It does not promote accounts:
+the target must already exist with the admin role, and exactly one normalized
+email match must exist. A customer or legacy account without a role is rejected.
+
+1. Enter a new password at `New password (hidden):`. Nothing is echoed, including
+   masking characters. Type it directly; do not pass passwords on the command
+   line, pipe them, or paste multiple lines.
+2. Enter the identical password at `Confirm new password (hidden):`.
+3. Review the displayed target email. Type exactly `RESET` and press Enter to
+   approve the database update. Any other answer cancels. Ctrl+C cancels a prompt.
+
+Passwords require at least 12 characters, uppercase and lowercase ASCII letters,
+a number, and a non-whitespace symbol, with a maximum of 72 UTF-8 bytes and no
+control characters. The script uses bcrypt cost 10, matching registration.
+Passwords and hashes are never logged. Non-interactive input is refused.
+
+The update sets only the selected account's password: it does not modify roles,
+other users, or timestamps. Its atomic filter also checks the admin role and the
+original password hash. Concurrent role/password changes cause it to fail closed.
+Database connections and hidden-prompt terminal mode are cleaned up on completion
+or cancellation. No reset was executed during implementation.
+
+Existing JWTs are not revoked by this reset; they retain the expiration behavior
+described below. The script is an operator tool, not a public password-reset API.
+
 JWTs use HS256 and expire after seven days. Configure a strong private JWT_SECRET
 on the backend. Frontends use separate `shopzone.customer.token` and
 `shopzone.admin.token` localStorage keys; legacy stored sessions must log in again.
@@ -91,7 +126,7 @@ approval, reconcile conflicts, and then create the index. No automatic migration
 or index creation was added. Until then simultaneous registrations can duplicate
 emails. Legacy mixed-case emails may need an approved normalization migration.
 
-Rate limiting, refresh-token rotation/revocation, password reset, email verification,
+Rate limiting, refresh-token rotation/revocation, public password recovery, email verification,
 inventory consistency and order fulfillment remain outside this phase. COD is the
 only accepted checkout method.
 
