@@ -72,7 +72,7 @@ export const getProductById = async (req: Request, res: Response) => {
   }
 };
 
-export const createProduct = async (req, res) => {
+export const createProduct = async (req: Request, res: Response) => {
   try {
     const { category } = req.body;
 

@@ -51,7 +51,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
       totalPrice,
     });
 
-    cart.items = [];
+    cart.items.splice(0, cart.items.length);
     await cart.save();
 
     res.status(201).json(order);

@@ -9,5 +9,5 @@ export const orderSchema = z.object({
     postalCode: z.string().min(4),
     phone: z.string().min(10),
   }),
-  paymentMethod: z.enum(["COD", "CARD", "GCASH"]),
+  paymentMethod: z.literal("COD"),
 });
